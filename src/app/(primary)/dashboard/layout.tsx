@@ -8,13 +8,8 @@
 //     },
 //   }
 // }
-import axios from "axios"
-import { ReactNode } from "react"
-
-async function getData() {
-  const res = await axios.get("https://jsonplaceholder.typicode.com/posts")
-  return res.data
-}
+import { getData } from "@/api/todo"
+import { ReactNode, Suspense } from "react"
 
 interface DashboardLayoutProps {
   children: ReactNode
@@ -27,8 +22,8 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
   return (
     <section>
       <h1>Dashboard</h1>
-      {children}
-      <p>{data.map((t)=> t.userId)}</p>
+      <div>{`サーバサイドレンダリング： ${data[0].title}`}</div>
+      <Suspense fallback={<p>Loading feed...</p>}>{children}</Suspense>
     </section>
   )
 }
