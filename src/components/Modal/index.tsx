@@ -1,5 +1,8 @@
 "use client"
 import React, { useState, useRef, TouchEvent, useEffect } from "react"
+import ReactDOM from "react-dom"
+
+const FOOTER_BOTTOM = 71 // フッターの高さ
 
 const modalStyle = {
   position: "fixed",
@@ -10,7 +13,8 @@ const modalStyle = {
   maxHeight: "60vh",
   minHeight: "30vh",
   overflow: "auto",
-  paddingBottom: "71px", // フッターの高さ分余白を作る
+  borderRadius: '15px 15px 0 0',
+  paddingBottom: `${FOOTER_BOTTOM}px`, // フッターの高さ分余白を作る
 } as const
 
 const headerStyle = {
@@ -41,28 +45,66 @@ const footerStyle = {
 //   onClose: () => void
 // }
 
-const Modal: React.FC = () => {
+interface ModalProps {
+  level: number
+  isModalOpen: boolean
+  modalHeight?: number
+  setIsModalOpen: React.Dispatch<React.SetStateAction<boolean>>
+}
+
+// ...Modalコンポーネントの定義の前に
+let modalRoot: HTMLElement | null = null;
+
+const Modal: React.FC<ModalProps> = ({
+  level,
+  isModalOpen,
+  modalHeight,
+  setIsModalOpen,
+}) => {
   const [startY, setStartY] = useState<number>(0)
   const [currentY, setCurrentY] = useState<number>(0)
-  const [isModalOpen, setIsModalOpen] = useState(false)
   const [headerOpacity, setHeaderOpacity] = useState(1) // 通常ヘッダーの透明度
 
-  const handleOpenModal = () => {
-    setIsModalOpen(true)
+  // 2階層目のモーダル
+  const [isSecondModalOpen, setIsSecondModalOpen] = useState(false) // 2階層目のモーダルの状態
+  const [secondModalHeight, setSecondModalHeight] = useState(0) 
 
+  const modalRef = useRef<HTMLDivElement>(null)
+  const footerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
     // フッターの高さを取得してモーダルの marginBottom に設定
     if (footerRef.current && modalRef.current) {
       const footerHeight = footerRef.current.offsetHeight
       modalRef.current.style.marginBottom = `${footerHeight}px`
     }
-  }
+  }, [isModalOpen])
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      modalRoot = document.getElementById("modal-root") || document.body
+    }
+  }, [])
 
   const handleCloseModal = () => {
     setIsModalOpen(false)
   }
 
-  const modalRef = useRef<HTMLDivElement>(null)
-  const footerRef = useRef<HTMLDivElement>(null)
+  const handleBackgroundClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      handleCloseModal()
+    }
+  }
+
+  const handleSecondModal = () => {
+    setSecondModalHeight(
+      modalRef.current
+        ? modalRef.current.offsetHeight - FOOTER_BOTTOM - (20 * (level + 1))
+        : 500
+    )
+
+    setIsSecondModalOpen(true)
+  }
 
   const handleTouchStart = (e: TouchEvent) => {
     if (headerOpacity === 0) {
@@ -141,126 +183,150 @@ const Modal: React.FC = () => {
     }
   }
 
-  return (
-    <>
-      <div>
-        <button onClick={handleOpenModal}>モーダルを開く</button>
-      </div>
-      {isModalOpen && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.3)",
-          }}
-        >
-          {/* モーダル本体 */}
-          <div
-            ref={modalRef}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onScroll={handleScroll}
-            style={modalStyle}
-          >
+  return modalRoot
+    ? ReactDOM.createPortal(
+        <>
+          {isModalOpen && (
             <div
               style={{
-                padding: "10px",
-                border: "1px solid #ccc",
-                height: "50px",
-                opacity: headerOpacity === 0 ? 1 : headerOpacity,
-                position: headerOpacity === 0 ? "fixed" : "relative",
-                transition: "opacity 0.3s",
-                backgroundColor: "#fff",
-                left: 0,
+                position: "fixed",
+                top: 0,
                 right: 0,
+                bottom: 0,
+                left: 0,
+                zIndex: 1000,
+                width: "auto",
+                height: "auto",
+                backgroundColor: "rgba(0,0,0,0.3)",
               }}
+              onClick={handleBackgroundClick}
             >
-              ヘッダー
-            </div>
-            {/* 固定ヘッダー */}
-            {/* {headerOpacity < 1 && (
+              {/* モーダル本体 */}
               <div
+                ref={modalRef}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onScroll={handleScroll}
                 style={{
-                  padding: "10px",
-                  border: "1px solid #ccc",
-                  height: "50px",
-                  position: "fixed",
-                  top: -1,
-                  opacity: 1 - headerOpacity,
-                  transition: "opacity 0.3s",
-                  backgroundColor: "#fff",
+                  ...modalStyle,
+                  boxShadow: `0 -${level * 2}px ${level * 5}px rgba(0, 0, 0, ${
+                    level * 0.1
+                  })`,
+                  height: modalHeight ? `${modalHeight}px` : "auto",
                 }}
               >
-                ヘッダー
+                <div
+                  style={{
+                    padding: "10px",
+                    border: "1px solid #ccc",
+                    height: "50px",
+                    opacity: headerOpacity === 0 ? 1 : headerOpacity,
+                    position: headerOpacity === 0 ? "fixed" : "relative",
+                    transition: "opacity 0.3s",
+                    backgroundColor: "#fff",
+                    left: 0,
+                    right: 0,
+                    borderRadius: "15px 15px 0 0",
+                  }}
+                >
+                  ヘッダー
+                  {isModalOpen && level === 1 && (
+                    // ...（1階層目のモーダルのコードはそのまま）
+                    <button onClick={handleSecondModal}>次のモーダル</button>
+                  )}
+                </div>
+                {/* 固定ヘッダー */}
+                {/* {headerOpacity < 1 && (
+                <div
+                  style={{
+                    padding: "10px",
+                    border: "1px solid #ccc",
+                    height: "50px",
+                    position: "fixed",
+                    top: -1,
+                    opacity: 1 - headerOpacity,
+                    transition: "opacity 0.3s",
+                    backgroundColor: "#fff",
+                  }}
+                >
+                  ヘッダー
+                </div>
+              )} */}
+                <div style={{ ...contentStyle }}>
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテンツ
+                  <br />
+                  コンテン
+                  <br />
+                </div>
               </div>
-            )} */}
-            <div style={{ ...contentStyle }}>
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテンツ
-              <br />
-              コンテン
-              <br />
+              {/* 固定フッター */}
+              <div ref={footerRef} style={footerStyle}>
+                フッター
+              </div>
             </div>
-          </div>
-          {/* 固定フッター */}
-          <div ref={footerRef} style={footerStyle}>
-            フッター
-          </div>
-        </div>
-      )}
-    </>
-  )
+          )}
+          {/* 次の階層のモーダル */}
+          {level === 1 && modalRef.current && (
+            <Modal
+              level={level + 1}
+              isModalOpen={isSecondModalOpen}
+              modalHeight={secondModalHeight}
+              setIsModalOpen={setIsSecondModalOpen}
+            />
+          )}
+        </>,
+        modalRoot
+      )
+    : null
 }
 
 export default Modal
