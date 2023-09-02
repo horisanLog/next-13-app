@@ -1,9 +1,8 @@
 import Image from 'next/image'
 import styles from './page.module.css'
-import Modal from '@/components/Modal'
+import { HomeTemplate } from '@/components/Home'
 
 export default function Home() {
-  
   return (
     // <main className={styles.main}>
     //   <div className={styles.description}>
@@ -95,6 +94,8 @@ export default function Home() {
     //     </a>
     //   </div>
     // </main>
-    <Modal />
+    <>
+      <HomeTemplate />
+    </>
   )
 }
